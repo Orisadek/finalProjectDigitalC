@@ -18,9 +18,8 @@ void GPIOconfig(void){
   WDTCTL = WDTHOLD | WDTPW;		// Stop WDT
   pwm_engine_init();
   trigger_and_echo_legs_config();
-
-  ///
 }
+
 
 
 void timer_trigger_and_echo_config(void) //  4 ms timer
@@ -70,6 +69,7 @@ void UART_CONFIG(){
       U1CTL &= ~SWRST;                          // Initialize USART state machine
       IE2 |= URXIE1;                            // Enable USART1 RX interrupt
 }
+
 
 
 void ADC_channels_Config(){

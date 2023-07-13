@@ -4,6 +4,7 @@
 
 
 
+
 int delay_count = 20, count =0;
 unsigned int val0=0 , val1=0;
 int flag = 0;
@@ -11,6 +12,7 @@ int mask_dist;
 int distance_to_send;
 char  data_to_send;
 unsigned int LDR1_samp, LDR2_samp;
+
 
 
 //--------------------------------------------------------------------
@@ -209,12 +211,14 @@ void lcd_strobe(){
 }
 
 
+
   void start_timer_pwm_engine(){
       TBCCTL1  = OUTMOD_7;
       TBCTL |= MC_1; // START UP MODE
       if(state == state1)
            TBCCTL0 |= CCIE; // FOR DELAY COUNTING
   }
+
 
 
 
@@ -227,6 +231,7 @@ void __attribute__ ((interrupt(TIMER0_A1_VECTOR))) TIMER1_A1_ISR (void)
 #error Compiler not supported!
 #endif
 {
+
 
   //  TACCTL2 &= ~COV;
     switch(__even_in_range(TAIV, 0x0A))
@@ -303,13 +308,13 @@ void start_capture_echo(){
     TAR = 0;
     TACCTL2 |= CCIE;
     TACTL |= MC_2;  // TIMER A TO MC_2 FOR CAPTURING ECHO
-
 }
 
 
 int calc_dis(){
     return (val1 - val0);
 }
+
 
 void send_dist_and_angle(int distance,int deg){
     distance_to_send = distance;
@@ -363,6 +368,7 @@ __interrupt void USART1_rx (void)
        LPM0_EXIT;
    break;
    case '2':
+
        state = state2;  // state2 is telemeter
        rcv_data =1;
        LPM0_EXIT;
@@ -376,12 +382,12 @@ __interrupt void USART1_rx (void)
        state = state4;
        rcv_data = 1;
        LPM0_EXIT;
+
    break;
    case '5':
           state = state5;   // state5 is environment config for the light sources detector
           rcv_data = 1;
           LPM0_EXIT;
-
 
    }
   }
@@ -420,11 +426,13 @@ __interrupt void USART1_rx (void)
      //     case state5:
 
        //   break;
+
       }
 
   }
 
 }
+
 
 
 #pragma vector=USART1TX_VECTOR

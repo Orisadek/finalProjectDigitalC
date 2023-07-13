@@ -26,6 +26,7 @@ void main(void){
 		break;
 		 
 	    case state2:
+
 	    telemeter();
 		break;
 		
@@ -36,6 +37,7 @@ void main(void){
 	  case state4:
 
 	    break;
+
 	  case state5:
 	      environment_config();
 	      state = state0;

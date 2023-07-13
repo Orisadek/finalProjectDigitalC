@@ -12,6 +12,7 @@ enum SYSmode lpm_mode;
 unsigned int distance, mask_dist_api;
 unsigned int distances_array [500] = {0};
 unsigned int config_samples_array [20] = {0};
+
 //******************************************************************
 // write a string of chars to the LCD
 //******************************************************************
@@ -23,7 +24,6 @@ void lcd_puts(const char * s){
 
 
  void set_angle(int degree_reg){
-
      int i = 0;
      __bis_SR_register(LPM0_bits + GIE); // waiting for mask_disk
      mask_dist_api = get_mask_dist();
@@ -94,8 +94,6 @@ void lcd_puts(const char * s){
 
 
  }
-
-
 
 
 

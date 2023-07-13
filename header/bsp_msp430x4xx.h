@@ -4,6 +4,7 @@
 #include  <msp430xG46x.h>  // MSP430x4xx    (MSP430FG4619)
 
 
+
 #define   debounceVal      1024
 
 // PushButtons abstraction
@@ -52,6 +53,7 @@ extern void timer_trigger_and_echo_config();
 extern void trigger_and_echo_legs_config();
 extern void PB_config();
 extern void ADC_channels_Config();
+
 
 #endif
 

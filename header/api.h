@@ -7,6 +7,7 @@
 extern void lcd_puts(const char *);
 extern void set_angle(int degree_reg);
 extern void telemeter (void);
+
 #endif
 
 
