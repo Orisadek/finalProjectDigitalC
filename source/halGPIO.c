@@ -417,9 +417,6 @@ __interrupt void USART1_rx (void)
                          LPM0_EXIT;
                      }
 
-     //     case state5:
-
-       //   break;
 
       }
 
@@ -442,8 +439,6 @@ __interrupt void USART1_tx (void)
 #pragma vector = ADC12_VECTOR
 __interrupt void ADC12_ISR(void)
 {
-
-
     switch(ADC12IV){
     case 0x06:
         LDR1_samp = ADC12MEM0; break;
@@ -472,7 +467,6 @@ void output_trigger(){
     TAR = 0;
     TACCR1 =  100;
     P1OUT |= 0X04;
-
     TACCTL1 |= CCIE;
     TACTL |= MC_2;
 
@@ -495,7 +489,6 @@ unsigned int get_LDR2_samp(){
 void write_int_flash(int adress, int value)
 {
   int *Flash_ptr;                           // Flash pointer
-
   Flash_ptr = (int *)adress;                // Initialize Flash pointer
   FCTL3 = FWKEY;                            // Clear Lock bit
   FCTL1 = FWKEY + WRT;                      // Set WRT bit for write operation
@@ -503,6 +496,43 @@ void write_int_flash(int adress, int value)
   FCTL1 = FWKEY;                            // Clear WRT bit
   FCTL3 = FWKEY + LOCK;                     // Set LOCK bit
 }
+
+
+
+void send_config_array(){
+    TXBUF1 = 0x1;
+    transferBlock(Flash_Address+2,TXBUF1,40);
+    __bis_SR_register(LPM0_bits + GIE);
+}
+
+
+void transferBlock(char * addr_src, char * adrr_dst, int blk_sz){
+    WDTCTL = WDTPW + WDTHOLD;                 // Stop WDT
+    DMACTL0 = DMA0TSEL_10;                     // CCR2 trigger
+    DMA0SA = (void (*)())addr_src;                  // Source block address
+    DMA0DA = (void (*)())&TXBUF1;                     // Destination single address
+    DMA0SZ = blk_sz;                            // Block size
+    DMA0CTL = DMADT_4 + DMASRCINCR_3 + DMASBDB + DMAEN+DMAIE; // Rpt, inc src
+}
+
+
+
+#if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
+#pragma vector=DMA_VECTOR
+  __interrupt void DMA0_handler(void)
+#elif defined(__GNUC__)
+void __attribute__ ((interrupt(DMA_VECTOR))) DMA0_handler (void)
+#else
+#error Compiler not supported!
+#endif
+  {
+      switch(DMAIV){
+      case 0x02:
+          DMA0CTL &= ~DMAEN + ~DMAIE;
+          LPM0_EXIT;
+      }
+
+  }
 
 
 

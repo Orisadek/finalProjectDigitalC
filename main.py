@@ -101,7 +101,7 @@ def telemeter_function(s):
     num_option = '2'
     send_byte(ord(num_option), s)  # move to state1
     # ----------------------------------------set angle to send --------------------------------------------------------
-    angle = 115
+    angle = 0
     factor_distance = 62  # 1/ [(1/2^20) *17000]
     factor_angle = 11
     raw_angle = 629 + factor_angle * angle  # 1/ [(1/2^20) *17000]
@@ -130,6 +130,45 @@ def telemeter_function(s):
 
     print(distances_list)
     print(len(distances_list))
+
+
+def light_sources_detector(s):
+    num_option = '3'
+    send_byte(ord(num_option), s)  # move to state1
+    ldr1_list = []
+    ldr2_list = []
+    i = 0
+    j = 0
+    while j < 1:
+        if s.in_waiting > 0:
+            r = int.from_bytes(s.read(size=1), "big")  # received MSB byte of distance
+            j += 1
+    while i < 40:
+        if s.in_waiting > 0:
+            receiving_data = int.from_bytes(s.read(size=1), "big")  # received MSB byte of distance
+            if i % 4 == 0:
+                print(receiving_data, i, "ldr1 msb")
+                ldr1_list.append(receiving_data )
+            elif i % 4 == 1:
+                print(receiving_data, i, "ldr1 lsb")
+                ldr1_list[len(ldr1_list) - 1] += receiving_data* 256  # add LSB byte to current received distance
+            elif i % 4 == 2:
+                print(receiving_data, i, "ldr2 angle msb")
+                ldr2_list.append(receiving_data)  # received MSB byte of angle
+            else:
+                print(receiving_data, i, "ldr2 angle lsb")
+                ldr2_list[len(ldr2_list) - 1] += receiving_data* 256  # add LSB byte to current received angle
+            i += 1
+    print(ldr1_list)
+    print(ldr2_list)
+
+    print([(ldr1_list[i], ldr2_list[i]) for i in range(0, len(ldr2_list))])
+    extended_array_1 = [((ldr1_list[i] + (ldr1_list[i + 1] - ldr1_list[i]) * 0.2 * k) for k in range(0, 5)) for i in
+                        range(9)]
+    extended_array_2 = [((ldr2_list[i] + (ldr2_list[i + 1] - ldr2_list[i]) * 0.2 * k) for k in range(0, 5)) for i in
+                        range(9)]
+    # avg_extended = [((extended_array_1[i] + extended_array_2[i]) * 0.5) for i in range (0, len(extended_array_1))]
+    # print(avg_extended)
 
 
 def send_byte(byte_data, s):
@@ -162,7 +201,8 @@ def main():
     # Telemeter.pack()
     telemeter.grid(row=1, column=1)
 
-    light_s = Button(root, text="Light Sources Detector System", width=25, font=("Arial", 10))
+    light_s = Button(root, text="Light Sources Detector System", width=25, command=lambda: light_sources_detector(s),
+                     font=("Arial", 10))
     # Light_S.pack()
     light_s.grid(row=1, column=2)
 

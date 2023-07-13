@@ -6,7 +6,7 @@
 //#define maxTBR  0xFFFF
 //#define subFreq  1048576
 #define T_Pwm  0X6666
-#define Flash_Address   0x3000
+
 
 enum FSMstate state;
 enum SYSmode lpm_mode;
@@ -91,5 +91,37 @@ void lcd_puts(const char * s){
 
  }
 
+
+void light_sources_detector(){
+    send_config_array();
+    TBCCR0 = T_Pwm;
+    TBCCR1 = 0x275;
+    unsigned int sample;
+        while(TBCCR1 < 0xa3d){
+            start_timer_pwm_engine();   //also starts delay
+            __bis_SR_register(LPM0_bits + GIE);
+            TBCCTL0 &= ~CCIE; // FOR DELAY COUNTING
+            start_sampling();
+            sample =  get_LDR1_samp();
+            while (!(IFG2 & UTXIFG1));
+            TXBUF1 = sample << 8; // send msb ldr1
+            while (!(IFG2 & UTXIFG1));
+            TXBUF1 = sample;      // send lsb ldr1
+            sample =  get_LDR2_samp();
+            while (!(IFG2 & UTXIFG1));
+            TXBUF1 = sample << 8;  // send msb ldr2
+            while (!(IFG2 & UTXIFG1));
+            TXBUF1 = sample;      // send lsb ldr2
+
+            TBCCR1 += 0X37;
+        }
+        //TACCTL2 &= ~CCIE;
+        TBCTL &= 0xffCf; //set MC0 of timer B
+        TBR=0;
+        send_dist(0xffff);
+
+
+
+}
 
 
