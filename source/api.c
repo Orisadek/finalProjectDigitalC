@@ -2,32 +2,32 @@
 #include  "../header/halGPIO.h"     // private library - HAL layer
 #include  "../header/LCD.h"
 #include "stdio.h"
-#define ASCII_OFFSET 48
-#define maxTBR  0xFFFF
-#define subFreq  1048576
-
+//#define ASCII_OFFSET 48
+//#define maxTBR  0xFFFF
+//#define subFreq  1048576
+#define T_Pwm  0X6666
+#define Flash_Address   0x3000
 
 enum FSMstate state;
 enum SYSmode lpm_mode;
 unsigned int distance, mask_dist_api;
-unsigned int distances_array [500] = {0};
-unsigned int config_samples_array [20] = {0};
+unsigned int distances_array[500] = {0};
+unsigned int config_samples_array[20] = {0};
 
 //******************************************************************
 // write a string of chars to the LCD
 //******************************************************************
 void lcd_puts(const char * s){
-
     while(*s)
         lcd_data(*s++);
 }
 
 
  void set_angle(int degree_reg){
-     int i = 0;
+     //int i = 0;
      __bis_SR_register(LPM0_bits + GIE); // waiting for mask_disk
      mask_dist_api = get_mask_dist();
-     TBCCR0 = 0X6666;
+     TBCCR0 = T_Pwm;
      TBCCR1 = degree_reg;
 
 
@@ -35,7 +35,6 @@ void lcd_puts(const char * s){
          start_timer_pwm_engine();   //also starts delay
          __bis_SR_register(LPM0_bits + GIE);
          TBCCTL0 &= ~CCIE; // FOR DELAY COUNTING
-
         //// __delay_cycles(80000);
          start_ultra_trigger();
          __bis_SR_register(LPM0_bits + GIE);
@@ -43,18 +42,16 @@ void lcd_puts(const char * s){
          distance = calc_dis();
 
          if(distance < mask_dist_api){
-             distances_array[i++] =distance;
+             //distances_array[i++] =distance;
              send_dist_and_angle(distance,TBCCR1);
             // stop_ultra_trigger();
            }
          TBCCR1 += 0X37;
      }
-
      //TACCTL2 &= ~CCIE;
      TBCTL &= 0xffCf; //set MC0 of timer B
      TBR=0;
-     send_dist_and_angle(0xffff,TBCCR1);
-
+     send_dist(0xffff);
  }
 
 
@@ -63,7 +60,7 @@ void lcd_puts(const char * s){
      unsigned int wanted_degree;
      __bis_SR_register(LPM0_bits + GIE); // waiting for wanted degree
      wanted_degree = get_mask_dist();    // NOT  mask_distance, but the wanted degree.
-     TBCCR0 = 0X6666;
+     TBCCR0 = T_Pwm;
      TBCCR1 = wanted_degree;
      start_timer_pwm_engine();   //also starts delay
      while(state==state2){
@@ -71,17 +68,16 @@ void lcd_puts(const char * s){
             start_ultra_trigger();
             __bis_SR_register(LPM0_bits + GIE);
             distance = calc_dis();
-            send_dist_and_angle(distance,TBCCR1);
-
-             }
+            send_dist(distance);
+           }
      }
 
 
  void environment_config(){
      char i = 0;
-     P1IE |= 0X01;
      unsigned int sample;
-     int address = 0x3000;
+     int address = Flash_Address;
+     P1IE |= 0X01;
      for(i = 0; i < 20; i+=2){
          __bis_SR_register(LPM0_bits + GIE); // waiting for user to be ready for sampling
           start_sampling();

@@ -1,12 +1,11 @@
 #include  "../header/halGPIO.h"     // private library - HAL layer
 #include  "../header/LCD.h"
 #include "stdio.h"
+#define delay_count  20
+#define MC_0_VAL 0xFFCF
 
-
-
-
-int delay_count = 20, count =0;
-unsigned int val0=0 , val1=0;
+int  count = 0;
+unsigned int val0 = 0 ,val1 = 0;
 int flag = 0;
 int mask_dist;
 int distance_to_send;
@@ -20,11 +19,10 @@ unsigned int LDR1_samp, LDR2_samp;
 //--------------------------------------------------------------------
 void sysConfig(void){ 
 	GPIOconfig();
-	timer_trigger_and_echo_config ();
+	timer_trigger_and_echo_config();
     UART_CONFIG();
 	lcd_init();
 	lcd_clear();
-	PB_config();
 	ADC_channels_Config();
 }
 
@@ -75,10 +73,6 @@ void enable_interrupts(){
 void disable_interrupts(){
     __bic_SR_register(GIE);
 }
-
-
-//----------------------- resrt state 2-------------------------
-
 
 
 //---------------------------------------------------------------------
@@ -249,7 +243,7 @@ void __attribute__ ((interrupt(TIMER0_A1_VECTOR))) TIMER1_A1_ISR (void)
                 flag ^= 1;
                 TACCTL2 &= ~CCIE;
                 TACCTL2 &= ~CCIFG;
-                TACTL &= 0xffCf;       //TIMER MC0
+                TACTL &= MC_0_VAL;       //TIMER MC0
                 LPM0_EXIT;
                   }
 
@@ -291,7 +285,7 @@ void __attribute__ ((interrupt(TIMER0_B0_VECTOR))) TIMER_B0_ISR(void)
 
 void start_ultra_trigger() {
     TACCR0 = 0XFFFF;
-    TACCR1 =0X20;
+    TACCR1 = 0X20;
     TAR = 0;
     TACCTL1 |= OUTMOD_7;
     TACCTL1 |= CCIE;
@@ -304,7 +298,7 @@ void stop_ultra_trigger(){
 }
 
 void start_capture_echo(){
-    TACTL &= 0xffCf;
+    TACTL &= MC_0_VAL;
     TAR = 0;
     TACCTL2 |= CCIE;
     TACTL |= MC_2;  // TIMER A TO MC_2 FOR CAPTURING ECHO
@@ -395,14 +389,14 @@ __interrupt void USART1_rx (void)
   else{
          switch(state){
          case state1: // state1 is object detector
-             if (state1_LSB_Byte == 0){    // Reciving MSB of mask distance
+             if (state1_LSB_Byte == 0){    // Receiving MSB of mask distance
                  mask_dist = RXBUF1;
                  mask_dist = mask_dist << 8;
                  state1_LSB_Byte = 1;
              }
 
              else {
-                 mask_dist |= RXBUF1; // Reciving LSB of mask distance
+                 mask_dist |= RXBUF1; // Receiving LSB of mask distance
                  state1_LSB_Byte = 0;
                  rcv_data = 0;
                  LPM0_EXIT;
@@ -410,14 +404,14 @@ __interrupt void USART1_rx (void)
              break;
 
          case state2:  // state2 is telemeter
-                     if (state1_LSB_Byte == 0){    // Reciving MSB of mask distance
+                     if (state1_LSB_Byte == 0){    // Receiving MSB of mask distance
                          mask_dist = RXBUF1;
                          mask_dist = mask_dist << 8;
                          state1_LSB_Byte = 1;
                      }
 
                      else {
-                         mask_dist |= RXBUF1; // Reciving LSB of mask distance
+                         mask_dist |= RXBUF1; // Receiving LSB of mask distance
                          state1_LSB_Byte = 0;
                          rcv_data = 0;
                          LPM0_EXIT;
@@ -505,9 +499,7 @@ void write_int_flash(int adress, int value)
   Flash_ptr = (int *)adress;                // Initialize Flash pointer
   FCTL3 = FWKEY;                            // Clear Lock bit
   FCTL1 = FWKEY + WRT;                      // Set WRT bit for write operation
-
   *Flash_ptr = value;                       // Write value to flash
-
   FCTL1 = FWKEY;                            // Clear WRT bit
   FCTL3 = FWKEY + LOCK;                     // Set LOCK bit
 }

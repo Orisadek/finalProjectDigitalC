@@ -18,13 +18,13 @@ void GPIOconfig(void){
   WDTCTL = WDTHOLD | WDTPW;		// Stop WDT
   pwm_engine_init();
   trigger_and_echo_legs_config();
+  PB_config();
 }
 
 
 
 void timer_trigger_and_echo_config(void) //  4 ms timer
 {
-
    //TACCTL1 |= OUTMOD_7;   // FOR TRIGGER ---> now we changed to 1.2
    TACCTL2 |= CAP  + CM_3 + SCS; // FOR ECHO CAPTURE
    TACTL = TASSEL_2 + MC_0;
@@ -51,7 +51,6 @@ void UART_CONFIG(){
 
       WDTCTL = WDTPW + WDTHOLD;                 // Stop WDT
       FLL_CTL0 |= XCAP14PF;                     // Configure load caps
-
       do
       {
       IFG1 &= ~OFIFG;                           // Clear OSCFault flag

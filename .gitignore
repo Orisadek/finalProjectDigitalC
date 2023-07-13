@@ -4,3 +4,4 @@
 .settings/
 targetConfigs/
 lnk_msp430fg4619.cmd
+Debug/
