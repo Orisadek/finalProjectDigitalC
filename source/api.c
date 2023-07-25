@@ -28,7 +28,7 @@ void lcd_puts(const char * s){
      __bis_SR_register(LPM0_bits + GIE); // waiting for mask_disk
      mask_dist_api = get_mask_dist();
      TBCCR0 = T_Pwm;
-     TBCCR1 = degree_reg;
+     TBCCR1 = 0x275;
 
 
      while(TBCCR1 < 0xa3d){
@@ -81,13 +81,23 @@ void lcd_puts(const char * s){
      for(i = 0; i < 20; i+=2){
          __bis_SR_register(LPM0_bits + GIE); // waiting for user to be ready for sampling
           start_sampling();
-          __bis_SR_register(LPM0_bits + GIE); // waiting for user to be ready for sampling
+          __bis_SR_register(LPM0_bits + GIE); // waiting for ADC to finish
           config_samples_array[i] =  get_LDR1_samp();
-          write_int_flash(address +=2 , config_samples_array[i] );
+          ///write_int_flash(address +=2 , config_samples_array[i] );
           config_samples_array[i + 1] =  get_LDR2_samp();
-          write_int_flash(address +=2 , config_samples_array[i+1] );
+        ///  write_int_flash(address +=2 , config_samples_array[i+1] );
+          erase_segment(address);  // prepare flash
+          address +=2;
+
      }
 
+     address = Flash_Address;
+     for(i = 0; i < 20; i+=2){
+         write_int_flash(address, config_samples_array[i] );
+         address +=2;
+         write_int_flash(address, config_samples_array[i+1] );
+         address +=2;
+     }
 
  }
 
@@ -102,26 +112,14 @@ void light_sources_detector(){
             __bis_SR_register(LPM0_bits + GIE);
             TBCCTL0 &= ~CCIE; // FOR DELAY COUNTING
             start_sampling();
-            sample =  get_LDR1_samp();
-            while (!(IFG2 & UTXIFG1));
-            TXBUF1 = sample << 8; // send msb ldr1
-            while (!(IFG2 & UTXIFG1));
-            TXBUF1 = sample;      // send lsb ldr1
-            sample =  get_LDR2_samp();
-            while (!(IFG2 & UTXIFG1));
-            TXBUF1 = sample << 8;  // send msb ldr2
-            while (!(IFG2 & UTXIFG1));
-            TXBUF1 = sample;      // send lsb ldr2
-
+            __bis_SR_register(LPM0_bits + GIE);
+            send_ldr(TBCCR1);
             TBCCR1 += 0X37;
         }
         //TACCTL2 &= ~CCIE;
         TBCTL &= 0xffCf; //set MC0 of timer B
         TBR=0;
         send_dist(0xffff);
-
-
-
 }
 
 

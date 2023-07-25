@@ -8,7 +8,7 @@
 #include "bsp_msp430x2xx.h"
 #endif
 //#include "bsp_msp430x4xx.h"    		// private library - BSP layer
-#define Flash_Address   0x1000
+#define Flash_Address   0x1032
 
 extern enum FSMstate state;   // global variable
 extern enum SYSmode lpm_mode; // global variable

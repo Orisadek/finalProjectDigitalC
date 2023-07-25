@@ -209,7 +209,7 @@ void lcd_strobe(){
   void start_timer_pwm_engine(){
       TBCCTL1  = OUTMOD_7;
       TBCTL |= MC_1; // START UP MODE
-      if(state == state1)
+      if(state == state1 || state == state3)
            TBCCTL0 |= CCIE; // FOR DELAY COUNTING
   }
 
@@ -249,7 +249,9 @@ void __attribute__ ((interrupt(TIMER0_A1_VECTOR))) TIMER1_A1_ISR (void)
 
           else
                    {
-                    val0 = TACCR2;
+                    //val0 = TACCR2;
+                    TAR = 0;
+                    val0 = TAR;
                     TACCTL2 &= ~CCIFG;
                     flag ^= 1;
                  }
@@ -356,6 +358,10 @@ __interrupt void USART1_rx (void)
 
   if(rcv_data == 0){
    switch(RXBUF1){
+   case '0':
+       state = state0;
+       LPM0_EXIT;
+       break;
    case '1':
        state = state1;  // state1 is object detector
        rcv_data =1;
@@ -369,7 +375,7 @@ __interrupt void USART1_rx (void)
    break;
    case '3':
        state = state3;
-       rcv_data =1;
+       rcv_data =0;
        LPM0_EXIT;
    break;
    case '4':
@@ -380,7 +386,7 @@ __interrupt void USART1_rx (void)
    break;
    case '5':
           state = state5;   // state5 is environment config for the light sources detector
-          rcv_data = 1;
+          rcv_data = 0;
           LPM0_EXIT;
 
    }
@@ -497,14 +503,43 @@ void write_int_flash(int adress, int value)
   FCTL3 = FWKEY + LOCK;                     // Set LOCK bit
 }
 
+void erase_segment(int adress)
+{
+  int *Flash_ptr;                           // Flash pointer
 
+  Flash_ptr = (int *)adress;                // Initialize Flash pointer
+  FCTL1 = FWKEY + ERASE;                    // Set Erase bit
+  FCTL3 = FWKEY;                            // Clear Lock bit
+
+  *Flash_ptr = 0;                           // Dummy write to erase Flash segment
+
+  FCTL3 = FWKEY + LOCK;                     // Set LOCK bit
+}
 
 void send_config_array(){
     TXBUF1 = 0x1;
-    transferBlock(Flash_Address+2,TXBUF1,40);
+    transferBlock(Flash_Address,TXBUF1,40);
     __bis_SR_register(LPM0_bits + GIE);
 }
 
+
+void send_ldr(unsigned int angle){
+    unsigned int sample;
+    sample =  get_LDR1_samp();
+    while (!(IFG2 & UTXIFG1));
+    TXBUF1 = sample >> 8; // send msb ldr1
+     while (!(IFG2 & UTXIFG1));
+    TXBUF1 = sample;      // send lsb ldr1
+    sample =  get_LDR2_samp();
+    while (!(IFG2 & UTXIFG1));
+    TXBUF1 = sample >> 8;  // send msb ldr2
+    while (!(IFG2 & UTXIFG1));
+    TXBUF1 = sample;      // send lsb ldr2
+    while (!(IFG2 & UTXIFG1));
+    TXBUF1 = angle >> 8;  // send msb angle
+    while (!(IFG2 & UTXIFG1));
+    TXBUF1 = angle;  // send lsb angle
+}
 
 void transferBlock(char * addr_src, char * adrr_dst, int blk_sz){
     WDTCTL = WDTPW + WDTHOLD;                 // Stop WDT

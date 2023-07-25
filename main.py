@@ -1,36 +1,25 @@
-from tkinter import *
+import tkinter as tk
 import serial as ser
 import time
+#######
 
-root = Tk()  # create parent window
+import numpy as np
+import matplotlib
+matplotlib.use('TkAgg')
+import matplotlib.pyplot as plt
+import keyboard
+from matplotlib.widgets import Button
+from matplotlib.backends.backend_tkagg import (
+    FigureCanvasTkAgg, NavigationToolbar2Tk)
 
-
-# use Button and Label widgets to create a simple TV remote
-
-# turn_on = Button(root, text="ON", command=turnOnTV)
-# turn_on.pack()
 
 def object_detector_gui(s):
-    """
-    out_txt = ""
-    frame = Tk()
-    frame.title("TextBox Input")
-    frame.geometry('20x200')
-
-    def printInput():
-        global out_txt
-        out_txt = inputtxt.get(1.0, "end-1c")
-        print(out_txt,"1")
-    # TextBox Creation
-    inputtxt = Text(frame, height=5,  width=20)
-    inputtxt.pack()
-    # Button Creation
-    printButton = Button(frame, text="Print", command=printInput)
-    printButton.pack()
-
-
-      #  lbl.config(text="Provided Input: " + inp)
-    """
+    # --------------------------------------------For Gui---------------------
+    s.reset_input_buffer()
+    s.reset_output_buffer()
+    fig.canvas.flush_events()
+    dists = np.ones((len(angles)))
+    #------------------------------------------------------------------------
     num_option = '1'
     send_byte(ord(num_option), s)  # move to state1
     # ----------------------------------set distance to send -----------------------------------------------------------
@@ -69,7 +58,18 @@ def object_detector_gui(s):
                 print(receiving_data, receiving_index, "angle lsb")
                 angles_list[len(angles_list) - 1] += receiving_data  # add LSB byte to current received angle
                 angles_list[len(angles_list) - 1] = (angles_list[len(angles_list) - 1] - 629) / factor_angle
+                print("distance:", distances_list[len(distances_list) - 1], "Angle", angles_list[len(angles_list) - 1] )
+                #----for GUI
+                dists[int(angles_list[len(angles_list) - 1])] = distances_list[len(distances_list) - 1]
+                line1[0].set_data(np.repeat((angles_list[len(angles_list) - 1] * (np.pi/180)) , 2) , np.linspace(0.0, r_max,2))
+                pols.set_data(theta, dists)
+                fig.canvas.restore_region(axbackground)
+                ax.draw_artist(pols)
+                ax.draw_artist(line1[0])
+                fig.canvas.blit(ax.bbox)
+                #-----
             receiving_index += 1
+
     # ------------------------------------------------------------------------------------------------------------------
     print(distances_list)
     print(angles_list)
@@ -77,31 +77,21 @@ def object_detector_gui(s):
     print([(distances_list[i], angles_list[i]) for i in range(0, len(angles_list))])
 
 
+
+
+
+
 def telemeter_function(s):
-    """
-    out_txt = ""
-    frame = Tk()
-    frame.title("TextBox Input")
-    frame.geometry('20x200')
-
-    def printInput():
-        global out_txt
-        out_txt = inputtxt.get(1.0, "end-1c")
-        print(out_txt,"1")
-    # TextBox Creation
-    inputtxt = Text(frame, height=5,  width=20)
-    inputtxt.pack()
-    # Button Creation
-    printButton = Button(frame, text="Print", command=printInput)
-    printButton.pack()
-
-
-      #  lbl.config(text="Provided Input: " + inp)
-    """
+    #--------------------------------------------For Gui---------------------
+    s.reset_input_buffer()
+    s.reset_output_buffer()
+    fig.canvas.flush_events()
+    dists = np.ones((len(angles)))
+    #-----------------------------------
     num_option = '2'
     send_byte(ord(num_option), s)  # move to state1
     # ----------------------------------------set angle to send --------------------------------------------------------
-    angle = 0
+    angle = 90
     factor_distance = 62  # 1/ [(1/2^20) *17000]
     factor_angle = 11
     raw_angle = 629 + factor_angle * angle  # 1/ [(1/2^20) *17000]
@@ -116,8 +106,8 @@ def telemeter_function(s):
     # ----------------------------------------get real time distace values----------------------------------------------
     distances_list = []
     receiving_index = 0
-    receiving_data = 0
-    while not (receiving_data == 255 and receiving_index % 2 == 1):
+
+    while True:
         if s.in_waiting > 0:
             receiving_data = int.from_bytes(s.read(size=1), "big")  # received MSB byte of distance
             if receiving_index % 2 == 0:
@@ -128,13 +118,27 @@ def telemeter_function(s):
                 print(distances_list[len(distances_list) - 1])
             receiving_index += 1
 
-    print(distances_list)
-    print(len(distances_list))
+            dists[int(angle)] = distances_list[len(distances_list) - 1]
+            line1[0].set_data(np.repeat((angle * (np.pi / 180)), 2),
+                              np.linspace(0.0, r_max, 2))
+            pols.set_data(theta, dists)
+            fig.canvas.restore_region(axbackground)
+            ax.draw_artist(pols)
+            ax.draw_artist(line1[0])
+            fig.canvas.blit(ax.bbox)
+            fig.canvas.flush_events()
+
+            if keyboard.is_pressed('e'):
+                print("Exit Telemeter")
+
+                fig.canvas.flush_events()
+                send_byte(ord('0'), s) # go to state0
+                break
 
 
-def light_sources_detector(s):
-    num_option = '3'
-    send_byte(ord(num_option), s)  # move to state1
+
+
+def get_init_arrays(s):
     ldr1_list = []
     ldr2_list = []
     i = 0
@@ -143,32 +147,108 @@ def light_sources_detector(s):
         if s.in_waiting > 0:
             r = int.from_bytes(s.read(size=1), "big")  # received MSB byte of distance
             j += 1
-    while i < 40:
+    while i < 40:  # config environment reciving
         if s.in_waiting > 0:
             receiving_data = int.from_bytes(s.read(size=1), "big")  # received MSB byte of distance
             if i % 4 == 0:
-                print(receiving_data, i, "ldr1 msb")
-                ldr1_list.append(receiving_data )
+                print(receiving_data, i, "ldr1 config lsb")
+                ldr1_list.append(receiving_data)
             elif i % 4 == 1:
-                print(receiving_data, i, "ldr1 lsb")
-                ldr1_list[len(ldr1_list) - 1] += receiving_data* 256  # add LSB byte to current received distance
+                print(receiving_data, i, "ldr1 config msb")
+                ldr1_list[len(ldr1_list) - 1] += receiving_data * 256  # add LSB byte to current received distance
             elif i % 4 == 2:
-                print(receiving_data, i, "ldr2 angle msb")
+                print(receiving_data, i, "ldr2  config lsb")
                 ldr2_list.append(receiving_data)  # received MSB byte of angle
             else:
-                print(receiving_data, i, "ldr2 angle lsb")
-                ldr2_list[len(ldr2_list) - 1] += receiving_data* 256  # add LSB byte to current received angle
+                print(receiving_data, i, "ldr2 config msb")
+                ldr2_list[len(ldr2_list) - 1] += receiving_data * 256  # add LSB byte to current received angle
             i += 1
     print(ldr1_list)
     print(ldr2_list)
+    ldr1_init_arr = []
+    ldr2_init_arr = []
+    for i in range(9):
+        space1 = (ldr1_list[i+1] - ldr1_list[i]) / 5
+        space2 = (ldr2_list[i + 1] - ldr2_list[i]) / 5
+        for j in range(5):
+            ldr1_init_arr.append(ldr1_list[i] + j * space1)
+            ldr2_init_arr.append(ldr2_list[i] + j * space2)
 
-    print([(ldr1_list[i], ldr2_list[i]) for i in range(0, len(ldr2_list))])
-    extended_array_1 = [((ldr1_list[i] + (ldr1_list[i + 1] - ldr1_list[i]) * 0.2 * k) for k in range(0, 5)) for i in
-                        range(9)]
-    extended_array_2 = [((ldr2_list[i] + (ldr2_list[i + 1] - ldr2_list[i]) * 0.2 * k) for k in range(0, 5)) for i in
-                        range(9)]
-    # avg_extended = [((extended_array_1[i] + extended_array_2[i]) * 0.5) for i in range (0, len(extended_array_1))]
-    # print(avg_extended)
+
+
+    print (len(ldr1_init_arr))
+    print (len(ldr2_init_arr))
+    print(ldr1_init_arr,"ldr1_init_arr",ldr2_init_arr,"ldr2_init_arr")
+    return [(ldr1_init_arr[i] + ldr2_init_arr[i]) * 0.5 for i in range(45)]
+
+
+def light_sources_detector(s):
+    s.reset_input_buffer()
+    # --------------------------------------------For Gui---------------------
+    fig2.canvas.flush_events()
+    dists = np.ones((len(angles)))
+    # -----------------------------------
+    num_option = '3'
+    send_byte(ord(num_option), s)  # move to state1
+    init_array = get_init_arrays(s)
+    ldr1 = []
+    ldr2 = []
+    samples_list = []
+    angles_list = []
+    distances = []
+    factor_angle = 11
+    receiving_index = 0
+    receiving_data = 0
+    while not (receiving_data == 255 and receiving_index % 6 == 1):
+        if s.in_waiting > 0:
+            receiving_data = int.from_bytes(s.read(size=1), "big")  # received MSB byte of distance
+            if receiving_index % 6 == 0:
+                print(receiving_data, receiving_index, "ldr1 msb data")
+                ldr1.append( receiving_data * 256)
+            elif receiving_index % 6 == 1:
+                print(receiving_data, receiving_index, "ldr1 lsb data")
+                ldr1[len(ldr1) - 1] += (receiving_data)  # add LSB byte to current received distance
+            elif receiving_index % 6 == 2:
+                print(receiving_data, receiving_index, "ldr2 msb data")
+                ldr2.append(receiving_data * 256)  # received MSB byte of angle
+
+            elif receiving_index % 6 == 3:
+                print(receiving_data, receiving_index, "ldr2 lsb data")
+                ldr2[len(ldr2) - 1] += receiving_data  # add LSB byte to current received angle
+               # print("ldr1:", ldr1[len(ldr1) - 1], "ldr2", ldr2[len(ldr2) - 1])
+                samp = (ldr1[len(ldr1) - 1] + ldr2[len(ldr2) - 1]) / 2
+                samples_list.append(samp)
+                dist_index =np.array([abs((init_array[i] - samp)) for i in range(45)]).argmin()
+                print("min: ", min([(init_array[i] - samp) for i in range(45)]))
+                print("min index: ", dist_index )
+                distance = (dist_index + 1)
+                distances.append(distance)
+
+            elif receiving_index % 6 == 4:
+                print(receiving_data, receiving_index, "angle msb")
+                angles_list.append(receiving_data * 256)  # received MSB byte of angle
+            else:
+                print(receiving_data, receiving_index, "angle lsb")
+                angles_list[len(angles_list) - 1] += receiving_data  # add LSB byte to current received angle
+                angles_list[len(angles_list) - 1] = (angles_list[len(angles_list) - 1] - 629) / factor_angle
+                print( angles_list[len(angles_list) - 1],  " angles_list[len(angles_list) - 1]")
+                # ----for GUI-------
+                dists[int(angles_list[len(angles_list) - 1])] = distances[len(distances) - 1]
+                line2[0].set_data(np.repeat((angles_list[len(angles_list) - 1] * (np.pi / 180)), 2),
+                                  np.linspace(0.0, r_max, 2))
+                pols2.set_data(theta, dists)
+                fig2.canvas.restore_region(axbackground)
+                ax2.draw_artist(pols2)
+                ax2.draw_artist(line1[0])
+                fig2.canvas.blit(ax.bbox)
+                #---------
+
+            receiving_index += 1
+
+    print(distances)
+    print(angles_list)
+    print(init_array, "init_array")
+    print([(distances[i], angles_list[i]) for i in range(0, len(angles_list))])
 
 
 def send_byte(byte_data, s):
@@ -176,58 +256,88 @@ def send_byte(byte_data, s):
     s.write(bytes_char)
 
 
-# s.reset_input_buffer()
 
 
-def main():
-    s = ser.Serial('COM1', baudrate=9600, bytesize=ser.EIGHTBITS,
-                   parity=ser.PARITY_NONE, stopbits=ser.STOPBITS_ONE,
-                   timeout=1)  # timeout of 1 sec where the read and write operations are blocking,
-    # after the timeout the program continues
-    # enableTX = True
-    # clear buffers
-    s.reset_input_buffer()
-    s.reset_output_buffer()
 
-    label1 = Label(root, text="choose your option", width=25, font=("Arial", 15))
-    label1.grid(row=0, column=1)
+###############COMUNICATION#####################################
+s = ser.Serial('COM1', baudrate=9600, bytesize=ser.EIGHTBITS,
+                parity=ser.PARITY_NONE, stopbits=ser.STOPBITS_ONE,
+                timeout=1)  # timeout of 1 sec where the read and write operations are blocking,
+# after the timeout the program continues
+# enableTX = True
+# clear buffers
+s.reset_input_buffer()
+s.reset_output_buffer()
+###############################################################
 
-    objects_d = Button(root, text="Objects Detector System", width=25, command=lambda: object_detector_gui(s),
-                       font=("Arial", 10))
-    # Objects_d.pack()
-    objects_d.grid(row=1, column=0)
+##############figure 1####################
+fig = plt.figure(facecolor='k')
+fig.canvas.toolbar.pack_forget()
+fig.canvas.manager.set_window_title("Radar")
+mgn = plt.get_current_fig_manager()
+mgn.window.state('zoomed')
+ax = fig.add_subplot(1, 1, 1, polar=True, facecolor='#006b70')
+ax.tick_params(axis='both', colors='w')
+r_max = 450
+ax.set_ylim([0.0, r_max])
+ax.set_xlim([0.0, np.pi])
+ax.set_position([-0.05, -0.05, 1.1, 1.05])  ## What
+ax.set_rticks(np.linspace(0.0, r_max, 5))
+ax.set_thetagrids(np.linspace(0.0, 180, 20))
+angles = np.arange(0, 181, 1)
+theta = angles * (np.pi / 180)
+theta = angles * (np.pi / 180)
+pols, = ax.plot([], linestyle='', marker='o', markerfacecolor='r',
+                    markeredgecolor='w', markeredgewidth=1.0, markersize=6.0, alpha=0.5)
 
-    telemeter = Button(root, text="Telemeter", width=25, command=lambda: telemeter_function(s), font=("Arial", 10))
-    # Telemeter.pack()
-    telemeter.grid(row=1, column=1)
-
-    light_s = Button(root, text="Light Sources Detector System", width=25, command=lambda: light_sources_detector(s),
-                     font=("Arial", 10))
-    # Light_S.pack()
-    light_s.grid(row=1, column=2)
-
-    script_m = Button(root, text="Script Mode", width=25, font=("Arial", 10))
-    # Script_M.pack()
-    script_m.grid(row=1, column=3)
-
-    root.mainloop()
-    """
-    while 1:
-        while s.in_waiting > 0:  # while the input buffer isn't empty
-            enableTX = False
-            char = s.read(size=1)  # read 1 char from the input buffer
-            str.append(char.decode("ascii"))
-
-            if s.in_waiting == 0:
-                enableTX = True  # enable transmission to echo the received data
-
-        while s.out_waiting > 0 or enableTX:
-            inChar = input("Enter menu option:")
-            bytesChar = bytes(inChar, 'ascii')
-            s.write(bytesChar)
-            s.reset_input_buffer()
-        """
+line1 = ax.plot([], color='w', linewidth=3.0)
+fig.canvas.draw()
+axbackground = fig.canvas.copy_from_bbox(ax.bbox)
+#########################################
 
 
-if __name__ == '__main__':
-    main()
+##############figure 2####################
+fig2 = plt.figure(facecolor='k')
+fig2.canvas.toolbar.pack_forget()
+fig2.canvas.manager.set_window_title("Radar")
+mgn = plt.get_current_fig_manager()
+mgn.window.state('zoomed')
+ax2 = fig2.add_subplot(1, 1, 1, polar=True, facecolor='#006b70')
+ax2.tick_params(axis='both', colors='w')
+r_max2 = 45
+ax2.set_ylim([0.0, r_max2])
+ax2.set_xlim([0.0, np.pi])
+ax2.set_position([-0.05, -0.05, 1.1, 1.05])  ## What
+ax2.set_rticks(np.linspace(0.0, r_max2, 5))
+ax2.set_thetagrids(np.linspace(0.0, 180, 20))
+pols2, = ax2.plot([], linestyle='', marker='o', markerfacecolor='y',
+                    markeredgecolor='w', markeredgewidth=1.0, markersize=6.0, alpha=0.5)
+
+line2 = ax2.plot([], color='w', linewidth=3.0)
+fig2.canvas.draw()
+
+axbackground = fig.canvas.copy_from_bbox(ax.bbox)
+##############TKinter###########################
+
+root = tk.Tk()  # create parent window
+label1 = tk.Label(root, text="choose your option", width=25, font=("Arial", 15))
+label1.grid(row=0, column=1)
+objects_d = tk.Button(root, text="Objects Detector System", width=25, command=lambda: object_detector_gui(s),
+                          font=("Arial", 10))
+# Objects_d.pack()
+objects_d.grid(row=1, column=0)
+
+telemeter = tk.Button(root, text="Telemeter", width=25, command=lambda: telemeter_function(s), font=("Arial", 10))
+# Telemeter.pack()
+telemeter.grid(row=1, column=1)
+
+light_s = tk.Button(root, text="Light Sources Detector System", width=25, command=lambda: light_sources_detector(s),
+                        font=("Arial", 10))
+# Light_S.pack()
+light_s.grid(row=1, column=2)
+
+script_m = tk.Button(root, text="Script Mode", width=25, font=("Arial", 10))
+# Script_M.pack()
+script_m.grid(row=1, column=3)
+plt.show(block = False)
+root.mainloop()
