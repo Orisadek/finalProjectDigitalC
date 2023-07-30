@@ -1,10 +1,9 @@
-
-
 import tkinter as tk
 import serial as ser
 import time
 #from trance_to_hex import *
 #######
+
 
 import numpy as np
 import matplotlib
@@ -332,6 +331,7 @@ def send_byte(byte_data, s):
     s.write(bytes_char)
 
 
+
 def translate_files(file_name):
     file = open(file_name, 'r')
     Lines = file.readlines()
@@ -362,6 +362,7 @@ def translate_files(file_name):
         instruction = "".join(instruction_arr)
         instructions.append(instruction)
     return instructions
+
 
 
 def send_file(s, file_name):
@@ -426,6 +427,7 @@ fig2.canvas.draw()
 axbackground = fig.canvas.copy_from_bbox(ax.bbox)
 ##############TKinter###########################
 """
+
 root = tk.Tk()  # create parent window
 label1 = tk.Label(root, text="choose your option", width=25, font=("Arial", 15))
 label1.grid(row=0, column=1)
@@ -442,6 +444,7 @@ light_s = tk.Button(root, text="Light Sources Detector System", width=25, comman
                         font=("Arial", 10))
 # Light_S.pack()
 light_s.grid(row=1, column=2)
+
 
 script_m = tk.Button(root, text="Send Files", width=25 , command=lambda:send_all_files(s), font=("Arial", 10))
 # Script_M.pack()

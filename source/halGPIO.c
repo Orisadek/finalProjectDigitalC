@@ -257,6 +257,7 @@ void __attribute__ ((interrupt(TIMER0_A1_VECTOR))) TIMER1_A1_ISR (void)
 
           else
                    {
+
                     val0 = TACCR2;
                     TAR = 0;
                     val0 = 0;
@@ -450,6 +451,7 @@ __interrupt void USART1_rx (void)
                          LPM0_EXIT;
                      }
 
+
          break;
          case state4:
              command = RXBUF1;
@@ -471,6 +473,7 @@ __interrupt void USART1_rx (void)
                   files_index = 0;
                   LPM0_EXIT; // wake back to get_files function in api
              }
+
 
 
 
@@ -627,6 +630,7 @@ void __attribute__ ((interrupt(DMA_VECTOR))) DMA0_handler (void)
       }
 
   }
+
 
 //////////////////////SCRIPT MODE FUNCTIONS////////////////////////////
 

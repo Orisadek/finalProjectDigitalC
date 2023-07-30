@@ -8,6 +8,7 @@
 #include "bsp_msp430x2xx.h"
 #endif
 //#include "bsp_msp430x4xx.h"    		// private library - BSP layer
+
 #define Flash_Address   0x1000
 #define Flash_files_address 0x1028
 
