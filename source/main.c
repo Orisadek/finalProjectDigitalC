@@ -21,7 +21,7 @@ void main(void){
 		break;
 		 
 	  case state1:
-	     set_angle(0x275);
+	     set_angle(0x275, 0xa3d,0);
 	     state = state0;
 		break;
 		 
@@ -43,6 +43,11 @@ void main(void){
 	      environment_config();
 	      state = state0;
 	  break;
+
+	  case state6:
+	      do_script();
+	      state = state0;
+	      break;
 
 	}
   }

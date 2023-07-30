@@ -16,10 +16,12 @@ int distance_to_send;
 char  data_to_send;
 unsigned int LDR1_samp, LDR2_samp;
 ///for script mode
-unsigned int X = 12;     // X of script mode
-unsigned int d = 100; // d of script mode
+char Script_Num;
+unsigned int d = 50; // d of script mode
 unsigned int d_count  = 0;
-unsigned int command;
+char command;
+
+
 
 //--------------------------------------------------------------------
 //             System Configuration  
@@ -216,7 +218,7 @@ void lcd_strobe(){
   void start_timer_pwm_engine(){
       TBCCTL1  = OUTMOD_7;
       TBCTL |= MC_1; // START UP MODE
-      if(state == state1 || state == state3)
+      if(state == state1 || state == state3 || state == state6)
            TBCCTL0 |= CCIE; // FOR DELAY COUNTING
   }
 
@@ -257,7 +259,6 @@ void __attribute__ ((interrupt(TIMER0_A1_VECTOR))) TIMER1_A1_ISR (void)
 
           else
                    {
-
                     val0 = TACCR2;
                     TAR = 0;
                     val0 = 0;
@@ -284,7 +285,7 @@ void __attribute__ ((interrupt(TIMER0_B0_VECTOR))) TIMER_B0_ISR(void)
 #error Compiler not supported!
 #endif
 {
-    if(state == state4){
+    if(state == state6){
 
           if(d_count == d){
                TBCCTL0 &= ~CCIE;
@@ -416,6 +417,14 @@ __interrupt void USART1_rx (void)
           state = state5;   // state5 is environment config for the light sources detector
           rcv_data = 0;
           LPM0_EXIT;
+    break;
+
+   case '6':
+             state = state6;   // state6 is script mode
+             rcv_data = 1;
+             LPM0_EXIT;
+       break;
+
 
    }
   }
@@ -451,35 +460,18 @@ __interrupt void USART1_rx (void)
                          LPM0_EXIT;
                      }
 
-
          break;
          case state4:
              command = RXBUF1;
              LPM0_EXIT;
-             /*
-             files_arr[files_index ] |= RXBUF1;
-             if (files_index % 2 ==0)
-                 files_arr[files_index ] << 8;
-             else
-             {
-
-             if(files_arr[files_index] == 0xff )
-                 EOF_count++;
-
-             files_index++;
-
-             if(EOF_count == 3){
-                  rcv_data = 0;
-                  files_index = 0;
-                  LPM0_EXIT; // wake back to get_files function in api
-             }
-
-
-
-
-             }
-             */
          break;
+
+         case state6:
+             Script_Num = RXBUF1;
+             rcv_data = 0;
+             LPM0_EXIT;
+          break;
+
       }
 
   }
@@ -612,6 +604,19 @@ void transferBlock(char * addr_src, char * adrr_dst, int blk_sz){
     DMA0CTL = DMADT_4 + DMASRCINCR_3 + DMASBDB + DMAEN+DMAIE; // Rpt, inc src
 }
 
+void transferBlock_script(char * addr_src, char * adrr_dst, int blk_sz){
+
+    WDTCTL = WDTPW + WDTHOLD;                 // Stop WDT
+     DMA1SA = (void (*)( ))addr_src;            // Start block address
+     DMA1DA = (void (*)( ))adrr_dst;            // Destination block address
+     DMA1SZ = blk_sz;                          // Block size
+     DMA1CTL = DMADT_1 + DMASRCINCR_3 + DMADSTINCR_3 + DMASRCBYTE + DMADSTBYTE; // Rpt, inc
+     DMA1CTL |= DMAEN+DMAIE;                         // Enable DMA0
+     DMA1CTL |= DMAREQ;
+     __bis_SR_register(LPM0_bits + GIE);
+}
+
+
 
 
 #if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
@@ -627,20 +632,28 @@ void __attribute__ ((interrupt(DMA_VECTOR))) DMA0_handler (void)
       case 0x02:
           DMA0CTL &= ~DMAEN + ~DMAIE;
           LPM0_EXIT;
+
+      case 0x04:
+          DMA0CTL &= ~DMAEN + ~DMAIE;
+          LPM0_EXIT;
+          break;
       }
 
   }
 
-
 //////////////////////SCRIPT MODE FUNCTIONS////////////////////////////
 
-unsigned int get_X(){
-    return X;
+char get_Script_Num(){
+    return Script_Num;
+}
+
+void set_d(char x)
+{
+    d = x;
 }
 
 
-
-unsigned int get_command(){
+char get_command(){
     return command;
 }
 

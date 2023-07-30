@@ -1,9 +1,10 @@
+
+
 import tkinter as tk
 import serial as ser
 import time
 #from trance_to_hex import *
 #######
-
 
 import numpy as np
 import matplotlib
@@ -15,7 +16,7 @@ from matplotlib.backends.backend_tkagg import (
     FigureCanvasTkAgg, NavigationToolbar2Tk)
 
 
-def object_detector_gui(s):
+def object_detector_gui(s, script_mode = False):
     plt.close("all")
     ##############figure 1####################
     fig = plt.figure(facecolor='k')
@@ -45,9 +46,6 @@ def object_detector_gui(s):
     s.reset_output_buffer()
     fig.canvas.flush_events()
     dists = np.ones((len(angles)))
-    #------------------------------------------------------------------------
-    num_option = '1'
-    send_byte(ord(num_option), s)  # move to state1
     # ----------------------------------set distance to send -----------------------------------------------------------
     factor_distance = 62  # 1/ [(1/2^20) *17000]
     factor_angle = 11
@@ -55,10 +53,15 @@ def object_detector_gui(s):
     raw_dis = dis * factor_distance  # 1/ [(1/2^20) *17000]
     raw_dis_low = raw_dis % 256
     raw_dis_high = raw_dis / 256
+    #------------------------------------------------------------------------
+    if(script_mode == False):
+        num_option = '1'
+        send_byte(ord(num_option), s)  # move to state1
+
     # ----------------------------------send mask distance--------------------------------------------------------------
-    send_byte(int(raw_dis_high), s)
-    time.sleep(1)  # Sleep for 3 seconds
-    send_byte(int(raw_dis_low), s)
+        send_byte(int(raw_dis_high), s)
+        time.sleep(1)  # Sleep for 3 seconds
+        send_byte(int(raw_dis_low), s)
     # ------------------------------------------------------------------------------------------------------------------
     # print(raw_dis_low)
     # print(raw_dis_high)
@@ -331,7 +334,6 @@ def send_byte(byte_data, s):
     s.write(bytes_char)
 
 
-
 def translate_files(file_name):
     file = open(file_name, 'r')
     Lines = file.readlines()
@@ -364,7 +366,6 @@ def translate_files(file_name):
     return instructions
 
 
-
 def send_file(s, file_name):
     file_arr = translate_files(file_name)
     print(file_arr)
@@ -390,6 +391,25 @@ def send_all_files(s):
     send_file(s,"Script1.txt")
     send_file(s, "Script2.txt")
     send_file(s, "Script3.txt")
+
+
+
+
+
+def Do_script_1(s , script_num):
+    plt.close("all")
+    num_option = '6'
+    send_byte(ord(num_option), s)  # move to state4
+    time.sleep(0.1)
+    send_byte(script_num, s)  # perform script
+    receiving_data = 0
+    while not (receiving_data == 255):
+        if s.in_waiting > 0:
+            receiving_data = int.from_bytes(s.read(size=1), "big")
+            if receiving_data == 7:
+                object_detector_gui(s, True)
+
+
 
 
             ###############COMUNICATION#####################################
@@ -427,7 +447,6 @@ fig2.canvas.draw()
 axbackground = fig.canvas.copy_from_bbox(ax.bbox)
 ##############TKinter###########################
 """
-
 root = tk.Tk()  # create parent window
 label1 = tk.Label(root, text="choose your option", width=25, font=("Arial", 15))
 label1.grid(row=0, column=1)
@@ -445,9 +464,11 @@ light_s = tk.Button(root, text="Light Sources Detector System", width=25, comman
 # Light_S.pack()
 light_s.grid(row=1, column=2)
 
-
 script_m = tk.Button(root, text="Send Files", width=25 , command=lambda:send_all_files(s), font=("Arial", 10))
 # Script_M.pack()
 script_m.grid(row=1, column=3)
+do_script = tk.Button(root, text="Do Sctipt 1", width=25 , command=lambda:Do_script_1(s,1), font=("Arial", 10))
+do_script.grid(row=1, column=4)
+
 plt.show(block = False)
 root.mainloop()
