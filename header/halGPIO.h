@@ -8,6 +8,8 @@
 #include "bsp_msp430x2xx.h"
 #endif
 //#include "bsp_msp430x4xx.h"    		// private library - BSP layer
+#define Flash_Address   0x1000
+#define Flash_files_address 0x1028
 
 
 extern enum FSMstate state;   // global variable
@@ -38,6 +40,8 @@ extern unsigned int get_LDR1_samp();
 extern unsigned int get_LDR2_samp();
 extern void start_sampling();
 extern void write_int_flash(int adress, int value);
+extern void send_config_array();
+extern void transferBlock(char * addr_src, char * adrr_dst, int blk_sz);
 #endif
 
 

@@ -5,7 +5,7 @@
 
 
 
-#define   debounceVal      1024
+#define   debounceVal      100024
 
 // PushButtons abstraction
 #define PBsArrPort     P1IN

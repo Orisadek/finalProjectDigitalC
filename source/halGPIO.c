@@ -4,6 +4,10 @@
 #define delay_count  20
 #define MC_0_VAL 0xFFCF
 
+
+
+char rcv_data = 0; /// for UART
+///////////
 int  count = 0;
 unsigned int val0 = 0 ,val1 = 0;
 int flag = 0;
@@ -11,8 +15,11 @@ int mask_dist;
 int distance_to_send;
 char  data_to_send;
 unsigned int LDR1_samp, LDR2_samp;
-
-
+///for script mode
+unsigned int X = 12;     // X of script mode
+unsigned int d = 100; // d of script mode
+unsigned int d_count  = 0;
+unsigned int command;
 
 //--------------------------------------------------------------------
 //             System Configuration  
@@ -209,7 +216,7 @@ void lcd_strobe(){
   void start_timer_pwm_engine(){
       TBCCTL1  = OUTMOD_7;
       TBCTL |= MC_1; // START UP MODE
-      if(state == state1)
+      if(state == state1 || state == state3)
            TBCCTL0 |= CCIE; // FOR DELAY COUNTING
   }
 
@@ -234,6 +241,7 @@ void __attribute__ ((interrupt(TIMER0_A1_VECTOR))) TIMER1_A1_ISR (void)
           TACCTL1 &= ~CCIE;                //STOP TRIGGER INTERUPT
          //   TACCTL1 &= 0XFF0F;                 // CCIE OF AND OUTMOD_0
           TAR = 0;
+          TACCTL2 &= ~CCIFG;
           TACCTL2 |= CCIE;
         break;
 
@@ -242,7 +250,7 @@ void __attribute__ ((interrupt(TIMER0_A1_VECTOR))) TIMER1_A1_ISR (void)
                val1 = TACCR2;
                 flag ^= 1;
                 TACCTL2 &= ~CCIE;
-                TACCTL2 &= ~CCIFG;
+                //TACCTL2 &= ~CCIFG;
                 TACTL &= MC_0_VAL;       //TIMER MC0
                 LPM0_EXIT;
                   }
@@ -250,7 +258,10 @@ void __attribute__ ((interrupt(TIMER0_A1_VECTOR))) TIMER1_A1_ISR (void)
           else
                    {
                     val0 = TACCR2;
-                    TACCTL2 &= ~CCIFG;
+                    TAR = 0;
+                    val0 = 0;
+                   // val0 = TAR;
+                   // TACCTL2 &= ~CCIFG;
                     flag ^= 1;
                  }
 
@@ -272,7 +283,22 @@ void __attribute__ ((interrupt(TIMER0_B0_VECTOR))) TIMER_B0_ISR(void)
 #error Compiler not supported!
 #endif
 {
-    if(count == delay_count){
+    if(state == state4){
+
+          if(d_count == d){
+               TBCCTL0 &= ~CCIE;
+               LPM0_EXIT;
+               d_count = 0;
+           }
+           else
+           {
+               d_count ++;
+           }
+    }
+
+else
+  {
+     if(count == delay_count){
         LPM0_EXIT;
         count = 0;
     }
@@ -280,16 +306,18 @@ void __attribute__ ((interrupt(TIMER0_B0_VECTOR))) TIMER_B0_ISR(void)
     {
         count ++;
     }
+ }
 }
 
 
 void start_ultra_trigger() {
-    TACCR0 = 0XFFFF;
+    TACCR0 = 0XFFFF; // we wanted up mode
     TACCR1 = 0X20;
     TAR = 0;
     TACCTL1 |= OUTMOD_7;
+    TACCTL1 &= ~CCIFG;
     TACCTL1 |= CCIE;
-    TACTL |= MC_1;
+    TACTL |= MC_1;   // start trigger upmode: mode 7
 }
 
 void stop_ultra_trigger(){
@@ -300,8 +328,8 @@ void stop_ultra_trigger(){
 void start_capture_echo(){
     TACTL &= MC_0_VAL;
     TAR = 0;
-    TACCTL2 |= CCIE;
     TACTL |= MC_2;  // TIMER A TO MC_2 FOR CAPTURING ECHO
+    TACCTL2 |= CCIE;
 }
 
 
@@ -351,11 +379,16 @@ void send_dist(int distance){
 #pragma vector=USART1RX_VECTOR
 __interrupt void USART1_rx (void)
 {
-  static char rcv_data = 0;
+
   static char state1_LSB_Byte = 0;
+
 
   if(rcv_data == 0){
    switch(RXBUF1){
+   case '0':
+       state = state0;
+       LPM0_EXIT;
+       break;
    case '1':
        state = state1;  // state1 is object detector
        rcv_data =1;
@@ -369,7 +402,7 @@ __interrupt void USART1_rx (void)
    break;
    case '3':
        state = state3;
-       rcv_data =1;
+       rcv_data =0;
        LPM0_EXIT;
    break;
    case '4':
@@ -380,7 +413,7 @@ __interrupt void USART1_rx (void)
    break;
    case '5':
           state = state5;   // state5 is environment config for the light sources detector
-          rcv_data = 1;
+          rcv_data = 0;
           LPM0_EXIT;
 
    }
@@ -417,16 +450,45 @@ __interrupt void USART1_rx (void)
                          LPM0_EXIT;
                      }
 
-     //     case state5:
+         break;
+         case state4:
+             command = RXBUF1;
+             LPM0_EXIT;
+             /*
+             files_arr[files_index ] |= RXBUF1;
+             if (files_index % 2 ==0)
+                 files_arr[files_index ] << 8;
+             else
+             {
 
-       //   break;
+             if(files_arr[files_index] == 0xff )
+                 EOF_count++;
 
+             files_index++;
+
+             if(EOF_count == 3){
+                  rcv_data = 0;
+                  files_index = 0;
+                  LPM0_EXIT; // wake back to get_files function in api
+             }
+
+
+
+             }
+             */
+         break;
       }
 
   }
 
 }
 
+
+///////////////SET  rcv_data/////////
+void Set_rcv_data(char rcv_data_init ){
+    rcv_data = rcv_data_init;
+}
+////////////////////////////////////
 
 
 #pragma vector=USART1TX_VECTOR
@@ -442,8 +504,6 @@ __interrupt void USART1_tx (void)
 #pragma vector = ADC12_VECTOR
 __interrupt void ADC12_ISR(void)
 {
-
-
     switch(ADC12IV){
     case 0x06:
         LDR1_samp = ADC12MEM0; break;
@@ -472,7 +532,6 @@ void output_trigger(){
     TAR = 0;
     TACCR1 =  100;
     P1OUT |= 0X04;
-
     TACCTL1 |= CCIE;
     TACTL |= MC_2;
 
@@ -495,7 +554,6 @@ unsigned int get_LDR2_samp(){
 void write_int_flash(int adress, int value)
 {
   int *Flash_ptr;                           // Flash pointer
-
   Flash_ptr = (int *)adress;                // Initialize Flash pointer
   FCTL3 = FWKEY;                            // Clear Lock bit
   FCTL1 = FWKEY + WRT;                      // Set WRT bit for write operation
@@ -504,7 +562,81 @@ void write_int_flash(int adress, int value)
   FCTL3 = FWKEY + LOCK;                     // Set LOCK bit
 }
 
+void erase_segment(int adress)
+{
+  int *Flash_ptr;                           // Flash pointer
+
+  Flash_ptr = (int *)adress;                // Initialize Flash pointer
+  FCTL1 = FWKEY + ERASE;                    // Set Erase bit
+  FCTL3 = FWKEY;                            // Clear Lock bit
+
+  *Flash_ptr = 0;                           // Dummy write to erase Flash segment
+
+  FCTL3 = FWKEY + LOCK;                     // Set LOCK bit
+}
+
+void send_config_array(){
+    TXBUF1 = 0x1;
+    transferBlock(Flash_Address,TXBUF1,40);
+    __bis_SR_register(LPM0_bits + GIE);
+}
+
+
+void send_ldr(unsigned int angle){
+    unsigned int sample;
+    sample =  get_LDR1_samp();
+    while (!(IFG2 & UTXIFG1));
+    TXBUF1 = sample >> 8; // send msb ldr1
+     while (!(IFG2 & UTXIFG1));
+    TXBUF1 = sample;      // send lsb ldr1
+    sample =  get_LDR2_samp();
+    while (!(IFG2 & UTXIFG1));
+    TXBUF1 = sample >> 8;  // send msb ldr2
+    while (!(IFG2 & UTXIFG1));
+    TXBUF1 = sample;      // send lsb ldr2
+    while (!(IFG2 & UTXIFG1));
+    TXBUF1 = angle >> 8;  // send msb angle
+    while (!(IFG2 & UTXIFG1));
+    TXBUF1 = angle;  // send lsb angle
+}
+
+void transferBlock(char * addr_src, char * adrr_dst, int blk_sz){
+    WDTCTL = WDTPW + WDTHOLD;                 // Stop WDT
+    DMACTL0 = DMA0TSEL_10;                     // CCR2 trigger
+    DMA0SA = (void (*)())addr_src;                  // Source block address
+    DMA0DA = (void (*)())&TXBUF1;                     // Destination single address
+    DMA0SZ = blk_sz;                            // Block size
+    DMA0CTL = DMADT_4 + DMASRCINCR_3 + DMASBDB + DMAEN+DMAIE; // Rpt, inc src
+}
 
 
 
+#if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
+#pragma vector=DMA_VECTOR
+  __interrupt void DMA0_handler(void)
+#elif defined(__GNUC__)
+void __attribute__ ((interrupt(DMA_VECTOR))) DMA0_handler (void)
+#else
+#error Compiler not supported!
+#endif
+  {
+      switch(DMAIV){
+      case 0x02:
+          DMA0CTL &= ~DMAEN + ~DMAIE;
+          LPM0_EXIT;
+      }
+
+  }
+
+//////////////////////SCRIPT MODE FUNCTIONS////////////////////////////
+
+unsigned int get_X(){
+    return X;
+}
+
+
+
+unsigned int get_command(){
+    return command;
+}
 

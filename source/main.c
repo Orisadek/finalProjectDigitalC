@@ -10,7 +10,7 @@ enum SYSmode lpm_mode;
 
 
 void main(void){
-  state = state5;  // start in idle state on RESET
+  state = state0;  // start in idle state on RESET
   lpm_mode = mode0;     // start in idle state on RESET
   sysConfig();
   
@@ -26,16 +26,17 @@ void main(void){
 		break;
 		 
 	    case state2:
-
 	    telemeter();
 		break;
 		
 	  case state3:
-
+	   light_sources_detector();
+	   state = state0;
 	    break;
 
 	  case state4:
-
+	      get_files();
+	      state = state0;
 	    break;
 
 	  case state5:
