@@ -15,11 +15,12 @@ unsigned int distances_array[500] = {0};
 unsigned int config_samples_array[20] = {0};
 ////////Script mode
 unsigned int files_arr[100] = {0};
-unsigned int script[21];
-
+unsigned int script[21], all_files_arr[63], temp[21] = {0};
 struct ScriptFiles {
     unsigned int addresses[3];
-
+    unsigned int num_of_files;
+    unsigned int f_names[3];
+    unsigned int f_sizes[3];
 };
 
 
@@ -33,6 +34,9 @@ void lcd_puts(const char * s){
         lcd_data(*s++);
 }
 
+//--------------------------------------------------------------------
+//             Servo Scan functions
+//--------------------------------------------------------------------
 
  void set_angle(unsigned int l, unsigned int r, char mode){   /// mode 0 -> Not script, Script is mode 1
      //int i = 0;
@@ -44,7 +48,7 @@ void lcd_puts(const char * s){
    TBCCR1 = l;
 
 
-     while(TBCCR1 < r){
+     while(TBCCR1 <= r){
          start_timer_pwm_engine();   //also starts delay
          __bis_SR_register(LPM0_bits + GIE);
          TBCCTL0 &= ~CCIE; // FOR DELAY COUNTING
@@ -65,7 +69,7 @@ void lcd_puts(const char * s){
             send_dist_and_angle(distance,TBCCR1);
         }
 
-         TBCCR1 += 0X37;
+         TBCCR1 += 0X2d;
      }//end while loop
      //////TACCTL2 &= ~CCIE;
      TBCTL &= 0xffCf; //set MC0 of timer B
@@ -73,12 +77,14 @@ void lcd_puts(const char * s){
      send_dist(0xffff);
  }
 
+ //--------------------------------------------------------------------
+ //             Telemeter functions
+ //--------------------------------------------------------------------
 
- void telemeter (){
-
+ void telemeter(){
      unsigned int wanted_degree;
      __bis_SR_register(LPM0_bits + GIE); // waiting for wanted degree
-     wanted_degree = get_mask_dist();    // NOT  mask_distance, but the wanted degree.
+     wanted_degree = get_deg();    // NOT  mask_distance, but the wanted degree.
      TBCCR0 = T_Pwm;
      TBCCR1 = wanted_degree;
      start_timer_pwm_engine();   //also starts delay
@@ -91,12 +97,14 @@ void lcd_puts(const char * s){
            }
      }
 
+ //--------------------------------------------------------------------
+ //             LDR functions
+ //--------------------------------------------------------------------
 
  void environment_config(){
      char i = 0;
-     unsigned int sample;
+    // unsigned int sample;
      int address = Flash_Address;
-     P1IE |= 0X01;
      for(i = 0; i < 20; i+=2){
          __bis_SR_register(LPM0_bits + GIE); // waiting for user to be ready for sampling
           start_sampling();
@@ -126,15 +134,14 @@ void light_sources_detector(){
     send_config_array();
     TBCCR0 = T_Pwm;
     TBCCR1 = 0x275;
-    unsigned int sample;
-        while(TBCCR1 < 0xa3d){
+        while(TBCCR1 <= 0x8c9){
             start_timer_pwm_engine();   //also starts delay
             __bis_SR_register(LPM0_bits + GIE);
             TBCCTL0 &= ~CCIE; // FOR DELAY COUNTING
             start_sampling();
             __bis_SR_register(LPM0_bits + GIE);
             send_ldr(TBCCR1);
-            TBCCR1 += 0X37;
+            TBCCR1 += 0X2d;
         }
         //TACCTL2 &= ~CCIE;
         TBCTL &= 0xffCf; //set MC0 of timer B
@@ -142,8 +149,10 @@ void light_sources_detector(){
         send_dist(0xffff);
 }
 
+//--------------------------------------------------------------------
+//             SCRIPT MODE  functions
+//--------------------------------------------------------------------
 
-//////////////////////SCRIPT MODE FUNCTIONS////////////////////////////
 void count_to_x(char X){
 
          char x_counter = 0;
@@ -192,20 +201,14 @@ void count_from_x(char X){
 }
 
 
-
-
-
-void store_files(){
+void store_one_file(){
     volatile int i;
     int address = Flash_files_address;
 
-        erase_segment(address);  // prepare flash
+    erase_segment(address);  // prepare flash
 
-
-
-  //  address = Flash_files_address;
     for (i = 0; i<64; i++){
-        write_int_flash(address,files_arr[i]);
+        write_int_flash(address,all_files_arr[i]);
         address +=2;
     }
 }
@@ -213,43 +216,6 @@ void store_files(){
 
 
 
-void get_files(){   ///The function of state4
-    char EOF_count = 0, files_index = 0, recv_counter = 0;
-    char com;
-
-    while(EOF_count < 6){
-    __bis_SR_register(LPM0_bits + GIE);
-
-    com = get_command();
-
-    if(com == 0xff)  /// 0xff means EOF
-        EOF_count++;
-
-    files_arr[files_index ] |= com;
-    if ((recv_counter % 2) == 0) // reciveng msb
-    {
-        files_arr[files_index ] = files_arr[files_index ] << 8;
-        recv_counter++;
-    }
-    else                       //reciveng lsb
-         {
-
-           files_index++;
-
-           if(EOF_count == 6){
-              Set_rcv_data(0);
-              files_index = 0;
-            }
-
-           recv_counter++;
-         }
-
-    } /// End while - recived all files
-
-
-    store_files();  // Store in Flash Memory
-
-}
 
 void rotate_char(char X){
         TBCTL = TBSSEL_2 + MC_0;
@@ -287,11 +253,10 @@ void rotate_char(char X){
 
 
 
-
 void do_script(){
     unsigned int com;
     int i;
-    unsigned int l_before,l,r;
+    unsigned int l,r;
 
     struct ScriptFiles s;
     s.addresses[0] = 0x1000;
@@ -310,12 +275,12 @@ void do_script(){
 
     case 2:
         transferBlock_script( s.addresses[1], script, 42);
-        __bis_SR_register(LPM0_bits + GIE);
+
         break;
 
     case 3:
         transferBlock_script( s.addresses[2], script, 42);
-        __bis_SR_register(LPM0_bits + GIE);
+
         break;
     }
 
@@ -343,15 +308,23 @@ void do_script(){
                lcd_clear();
             break;
 
+           case 6:
+              l = 629 + 11*((script[i] << 8) >>8 );
+              telemter_script(l);
+           break;
+
            case 7:
-               l = 629 + 11*((script[i] << 8) >>8 );
-               r = 629 + 11*(script[i+1] >> 8);
+               l = 629 + 9*((script[i] << 8) >>8 );
+               r = 629 + 9*(script[i+1] >> 8);
                while (!(IFG2 & UTXIFG1));
                TXBUF1 = 7;
                while (!(IFG2 & UTXIFG1));
                state= state1;
                set_angle( l,  r, 1);
                state= state6;
+
+           case 8:
+               state = state0;
          }
         }
 
@@ -363,6 +336,92 @@ void do_script(){
     TXBUF1 = 255;
 
 }
+
+
+
+void write_one_file(){
+    //unsigned int start_address, end_address;
+    unsigned int start_index, EOF_f =0, com, file_index, recv_counter = 0;
+    unsigned int file_index_temp, i;
+    struct ScriptFiles s;
+
+    char file_num;
+     s.addresses[0] = 0x1000;
+     s.addresses[1] = 0x102a;
+     s.addresses[2] = 0x1054;
+
+    __bis_SR_register(LPM0_bits + GIE);
+     file_num =get_command();
+
+
+    switch(file_num){
+    case 1:
+        start_index =  0;
+    break;
+
+    case 2:
+        start_index = 21;
+    break;
+
+    case 3:
+        start_index =  42;
+    break;
+
+    }
+
+    file_index = start_index;
+    file_index_temp = 0;
+
+    while(EOF_f == 0){
+        __bis_SR_register(LPM0_bits + GIE);
+        com = get_command();
+        temp[file_index_temp] |= com;
+        if ((recv_counter % 2) == 0) // reciveng msb
+        {
+            temp[file_index_temp] = temp[file_index_temp] << 8;
+            recv_counter++;
+        }
+        else                       //reciveng lsb
+             {
+            if(com == 0xff){  /// 0xff means EOF
+                EOF_f=1;
+                Set_rcv_data(0);
+            }
+            file_index_temp++;
+            recv_counter++;
+          }
+
+        } /// End while - recived all files
+
+    transferBlock_script( s.addresses[0], all_files_arr, 126);
+    s.f_names[file_num-1]=file_num;
+    for (i = 0; i < 21 ; i++)
+    {
+        all_files_arr[file_index + i] = temp[i];
+    }
+
+    store_one_file();
+
+    for (i = 0; i < 126 ; i++)
+     {
+          if(i<21)temp[i]=0;
+         all_files_arr[i] = 0;
+     }
+    while (!(IFG2 & UTXIFG1));
+    TXBUF1 = 255;
+}
+
+
+
+void telemter_script(unsigned int raw_angle){
+    TBCCR0 = T_Pwm;       // go to the the requested angle
+    TBCCR1 = raw_angle;
+    start_timer_pwm_engine();   //also starts delay
+    __delay_cycles(500000);
+}
+
+
+
 
 
 

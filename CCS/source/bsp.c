@@ -25,6 +25,7 @@ void GPIOconfig(void){
    P1DIR |= 0xF0;    // P1.4-P1.7 To Output('1')
    P1SEL &= ~0xF0;   // Bit clear P2.4-P2.7
    P2SEL  &= ~0xE0;   // Bit clear P2.5-P2.7
+   P1IE |= 0X01;     // button P0
    /////
 
 }

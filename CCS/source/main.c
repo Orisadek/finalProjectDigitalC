@@ -17,11 +17,12 @@ void main(void){
   while(1){
 	switch(state){
 	  case state0:
+	     // erase_segment(0x1000);
 	      sleep_gie();
 		break;
 		 
 	  case state1:
-	     set_angle(0x275, 0xa3d,0);
+	     set_angle(0x275, 0x8c9,0);
 	     state = state0;
 		break;
 		 
@@ -35,7 +36,7 @@ void main(void){
 	    break;
 
 	  case state4:
-	      get_files();
+	      write_one_file();
 	      state = state0;
 	    break;
 

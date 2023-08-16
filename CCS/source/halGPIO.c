@@ -11,7 +11,7 @@ char rcv_data = 0; /// for UART
 int  count = 0;
 unsigned int val0 = 0 ,val1 = 0;
 int flag = 0;
-int mask_dist;
+int mask_dist,deg_telemeter;
 int distance_to_send;
 char  data_to_send;
 unsigned int LDR1_samp, LDR2_samp;
@@ -38,9 +38,6 @@ void sysConfig(void){
 void sleep_gie(){
     __bis_SR_register(LPM0_bits + GIE);
 }
-//--------------------------------------------------------------------
-//             Timers functions
-//--------------------------------------------------------------------
 
 //---------------------------------------------------------------------
 //            Polling based Delay function
@@ -223,6 +220,9 @@ void lcd_strobe(){
   }
 
 
+  //--------------------------------------------------------------------
+  //             Timers functions
+  //--------------------------------------------------------------------
 
 
 #if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
@@ -335,11 +335,27 @@ void start_capture_echo(){
 }
 
 
+void output_trigger(){
+    TAR = 0;
+    TACCR1 =  100;
+    P1OUT |= 0X04;
+    TACCTL1 |= CCIE;
+    TACTL |= MC_2;
+
+}
+
+
+//--------------------------------------------------------------------
+//             distance functions
+//--------------------------------------------------------------------
+
 int calc_dis(){
     return (val1 - val0);
 }
 
-
+//--------------------------------------------------------------------
+//             Uart functions
+//--------------------------------------------------------------------
 void send_dist_and_angle(int distance,int deg){
     distance_to_send = distance;
     char i;
@@ -383,8 +399,7 @@ __interrupt void USART1_rx (void)
 {
 
   static char state1_LSB_Byte = 0;
-
-
+  static char state2_LSB_Byte = 0;
   if(rcv_data == 0){
    switch(RXBUF1){
    case '0':
@@ -397,7 +412,6 @@ __interrupt void USART1_rx (void)
        LPM0_EXIT;
    break;
    case '2':
-
        state = state2;  // state2 is telemeter
        rcv_data =1;
        LPM0_EXIT;
@@ -447,15 +461,15 @@ __interrupt void USART1_rx (void)
              break;
 
          case state2:  // state2 is telemeter
-                     if (state1_LSB_Byte == 0){    // Receiving MSB of mask distance
-                         mask_dist = RXBUF1;
-                         mask_dist = mask_dist << 8;
-                         state1_LSB_Byte = 1;
+                     if (state2_LSB_Byte == 0){    // Receiving MSB of mask distance
+                         deg_telemeter = RXBUF1;
+                         deg_telemeter = deg_telemeter << 8;
+                         state2_LSB_Byte = 1;
                      }
 
                      else {
-                         mask_dist |= RXBUF1; // Receiving LSB of mask distance
-                         state1_LSB_Byte = 0;
+                         deg_telemeter |= RXBUF1; // Receiving LSB of mask distance
+                         state2_LSB_Byte = 0;
                          rcv_data = 0;
                          LPM0_EXIT;
                      }
@@ -479,13 +493,6 @@ __interrupt void USART1_rx (void)
 }
 
 
-///////////////SET  rcv_data/////////
-void Set_rcv_data(char rcv_data_init ){
-    rcv_data = rcv_data_init;
-}
-////////////////////////////////////
-
-
 #pragma vector=USART1TX_VECTOR
 __interrupt void USART1_tx (void)
 {
@@ -495,6 +502,41 @@ __interrupt void USART1_tx (void)
 }
 
 
+void send_config_array(){
+    TXBUF1 = 0x1;
+    transferBlock(Flash_Address,&TXBUF1,40);
+}
+
+
+void send_ldr(unsigned int angle){
+    unsigned int sample;
+    sample =  get_LDR1_samp();
+    while (!(IFG2 & UTXIFG1));
+    TXBUF1 = sample >> 8; // send msb ldr1
+     while (!(IFG2 & UTXIFG1));
+    TXBUF1 = sample;      // send lsb ldr1
+    sample =  get_LDR2_samp();
+    while (!(IFG2 & UTXIFG1));
+    TXBUF1 = sample >> 8;  // send msb ldr2
+    while (!(IFG2 & UTXIFG1));
+    TXBUF1 = sample;      // send lsb ldr2
+    while (!(IFG2 & UTXIFG1));
+    TXBUF1 = angle >> 8;  // send msb angle
+    while (!(IFG2 & UTXIFG1));
+    TXBUF1 = angle;  // send lsb angle
+}
+
+///////////////SET  rcv_data/////////
+void Set_rcv_data(char rcv_data_init ){
+    rcv_data = rcv_data_init;
+}
+////////////////////////////////////
+
+
+
+//--------------------------------------------------------------------
+//             ADC functions
+//--------------------------------------------------------------------
 
 #pragma vector = ADC12_VECTOR
 __interrupt void ADC12_ISR(void)
@@ -508,28 +550,34 @@ __interrupt void ADC12_ISR(void)
     }
 }
 
+//--------------------------------------------------------------------
+//             Port1 functions
+//--------------------------------------------------------------------
 #pragma vector=PORT1_VECTOR
   __interrupt void PBs_handler(void){
       delay(debounceVal);
-      P1IFG &= ~0X01;
-      LPM0_EXIT;
+      if(state == state5){
+          P1IFG &= ~0X01;
+          LPM0_EXIT;
+      }
+      else{
+          state = state5;
+      }
   }
 
 
+
+ //--------------------------------------------------------------------
+ //             getters functions
+ //--------------------------------------------------------------------
 
 
 int get_mask_dist(){
     return mask_dist;
 }
 
-
-void output_trigger(){
-    TAR = 0;
-    TACCR1 =  100;
-    P1OUT |= 0X04;
-    TACCTL1 |= CCIE;
-    TACTL |= MC_2;
-
+int get_deg(){
+    return deg_telemeter;
 }
 
 
@@ -545,6 +593,11 @@ unsigned int get_LDR1_samp(){
 unsigned int get_LDR2_samp(){
     return LDR2_samp;
 }
+
+//--------------------------------------------------------------------
+//             Flash functions
+//--------------------------------------------------------------------
+
 
 void write_int_flash(int adress, int value)
 {
@@ -570,42 +623,21 @@ void erase_segment(int adress)
   FCTL3 = FWKEY + LOCK;                     // Set LOCK bit
 }
 
-void send_config_array(){
-    TXBUF1 = 0x1;
-    transferBlock(Flash_Address,TXBUF1,40);
-    __bis_SR_register(LPM0_bits + GIE);
-}
+//--------------------------------------------------------------------
+//             DMA functions
+//--------------------------------------------------------------------
 
-
-void send_ldr(unsigned int angle){
-    unsigned int sample;
-    sample =  get_LDR1_samp();
-    while (!(IFG2 & UTXIFG1));
-    TXBUF1 = sample >> 8; // send msb ldr1
-     while (!(IFG2 & UTXIFG1));
-    TXBUF1 = sample;      // send lsb ldr1
-    sample =  get_LDR2_samp();
-    while (!(IFG2 & UTXIFG1));
-    TXBUF1 = sample >> 8;  // send msb ldr2
-    while (!(IFG2 & UTXIFG1));
-    TXBUF1 = sample;      // send lsb ldr2
-    while (!(IFG2 & UTXIFG1));
-    TXBUF1 = angle >> 8;  // send msb angle
-    while (!(IFG2 & UTXIFG1));
-    TXBUF1 = angle;  // send lsb angle
-}
-
-void transferBlock(char * addr_src, char * adrr_dst, int blk_sz){
+void transferBlock(char *  addr_src, char * adrr_dst, int blk_sz){
     WDTCTL = WDTPW + WDTHOLD;                 // Stop WDT
     DMACTL0 = DMA0TSEL_10;                     // CCR2 trigger
     DMA0SA = (void (*)())addr_src;                  // Source block address
     DMA0DA = (void (*)())&TXBUF1;                     // Destination single address
     DMA0SZ = blk_sz;                            // Block size
     DMA0CTL = DMADT_4 + DMASRCINCR_3 + DMASBDB + DMAEN+DMAIE; // Rpt, inc src
+    __bis_SR_register(LPM0_bits + GIE);
 }
 
-void transferBlock_script(char * addr_src, char * adrr_dst, int blk_sz){
-
+void transferBlock_script(char *addr_src, char * adrr_dst, int blk_sz){
     WDTCTL = WDTPW + WDTHOLD;                 // Stop WDT
      DMA1SA = (void (*)( ))addr_src;            // Start block address
      DMA1DA = (void (*)( ))adrr_dst;            // Destination block address
@@ -656,4 +688,10 @@ void set_d(char x)
 char get_command(){
     return command;
 }
+
+
+
+
+
+
 
