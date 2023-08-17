@@ -20,26 +20,26 @@ The system can handle up to 3 independent scripts.
 The scripts are saved in the microcontroller’s Flash memory; hence,  users don’t need to send the same scripts every time they use the system.
 Each script is defined by a text file and contains a combination of the following commands (up to 10 commands in a script):
 
-    1.Inc_ldc (x)       -  counting from 0 to X with delay d is displayed on the LCD.
+    1. Inc_ldc (x)       -  counting from 0 to X with delay d is displayed on the LCD.
  	
-    2.dec_lcd (x)       -  counting from X to 0 with delay d is displayed on the LCD.
+    2. dec_lcd (x)       -  counting from X to 0 with delay d is displayed on the LCD.
  	
-    3.rra_lcd           -  rotate right onto LCD from pixel index 0 to pixel index 31 a single char x with delay d.
+    3. rra_lcd           -  rotate right onto LCD from pixel index 0 to pixel index 31 a single char x with delay d.
  	
-    4.set_delay         -  set the delay d value (units of 10ms).
+    4. set_delay         -  set the delay d value (units of 10ms).
  	
-    5.clear_lcd         -  clear the LCD.
+    5. clear_lcd         -  clear the LCD.
  	
-    6.servo_deg (p)     -  point the Ultrasonic sensor to degree p and show the degree and distance (dynamically) on the PC screen.
+    6. servo_deg (p)     -  point the Ultrasonic sensor to degree p and show the degree and distance (dynamically) on the PC screen.
  	
-    7.servo_scan (l,r)  -  Scan the area between the left l angle to the right r angle (once) and show the degree and distance (dynamically) onto the PC screen.
+    7. servo_scan (l,r)  -  scan the area between the left l angle to the right r angle (once) and
+                            show the degree and distance (dynamically) on the PC screen.
  	
-    8.sleep             - Set the MCU into sleep mode.
+    8. sleep             -  set the MCU into sleep mode.
 
+> [!IMPORTANT]
+> The default value of d is 50, changed only in state 4.
 
-   > [!IMPORTANT]
-   > The default value of d is 50, changed only in state 4.
-  
  ## FSM: 
    <img width="489" alt="image" src="https://github.com/Orisadek/finalProjectDigitalC/assets/43981934/9dbdd6c8-5969-46f6-8257-1af329d5b360">
 
