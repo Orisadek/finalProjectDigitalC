@@ -1,8 +1,8 @@
 # finalProjectDigitalC
-This project implements a system that includes a client-side (PC) and a server (MSP430 microcontroller). The PC side includes a GUI for the menu and for the graphical visualization of the system’s data. The server side includes a Servo motor 5-volt engine, an Ultra-Sonic sensor and two LDR sensors which are connected to the microcontroller.  The communication between both sides is made with UART.
+This project implements a system that includes a client-side (PC) and a server (MSP430 microcontroller). The PC side includes a GUI for the menu and for the graphical visualization of the system’s data. The server side includes a Servo motor 5-volt engine, an Ultra-Sonic sensor, and two LDR sensors which are connected to the microcontroller.  The communication between both sides is made with UART.
 The system supports the following 4 independent operating modes:
 ## Objects detector Radar:
-This utility is 180 degrees scanned by the Servo motor. During the scan, the system builds  a real-time graphical “radar–like” picture that contains all the objects which
+This utility is 180 degrees scanned by the Servo motor. During the scan, the system builds  a real-time graphical “radar-like” picture that contains all the objects which
 are in range 2 – MaxDistance [cm]. The user defines the value of MaxDistance before the scan begins, and it’s  no bigger than 450 cm.
 
 ## Telemeter: 
@@ -38,7 +38,7 @@ Each script is defined by a text file and contains a combination of the followin
     8. sleep             -  set the MCU into sleep mode.
 
 > [!IMPORTANT]
-> The default value of d is 50, changed only in state 4.
+> The default value of d is 50, changed only in state 4 (set_delay).
 
  ## FSM: 
    <img width="489" alt="image" src="https://github.com/Orisadek/finalProjectDigitalC/assets/43981934/9dbdd6c8-5969-46f6-8257-1af329d5b360">
